@@ -40,7 +40,7 @@ A FastAPI backend for fetching and eventually summarizing the latest research pa
 
 **3. Run the dev server**
 
-    uvicorn app.main:app --reload
+    uvicorn main:app --reload
 
 **4. Test the API**
 

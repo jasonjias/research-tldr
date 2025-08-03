@@ -1,0 +1,26 @@
+# DB connection & save logic
+from sqlmodel import SQLModel, create_engine, Session
+from app.models import ArxivPaper
+
+sqlite_file_name = "arxiv.db"
+engine = create_engine(f"sqlite:///{sqlite_file_name}")
+
+def init_db():
+    SQLModel.metadata.create_all(engine)
+
+def save_papers(papers: list[dict]):
+    with Session(engine) as session:
+        for paper in papers:
+            if session.query(ArxivPaper).filter_by(arxiv_id=paper["arxiv_id"]).first():
+                continue
+            session.add(ArxivPaper(
+                arxiv_id=paper["arxiv_id"],
+                title=paper["title"],
+                summary=paper["summary"],
+                published=paper["published"],
+                updated=paper["updated"],
+                authors=", ".join(paper["authors"]),
+                url=paper["url"],
+                pdf_url=paper["pdf_url"]
+            ))
+        session.commit()
