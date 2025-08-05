@@ -6,7 +6,7 @@ from datetime import datetime
 
 ARXIV_API_URL = "https://export.arxiv.org/api/query"
 
-async def fetch_arxiv_papers(start_date: str, end_date: str, start: int = 0, max_results: int = 10):
+async def fetch_arxiv_papers(start_date: str, end_date: str, start: int = 0, max_results: int = 100):
     query = f"submittedDate:[{start_date} TO {end_date}]"
     params = {
         "search_query": query,
