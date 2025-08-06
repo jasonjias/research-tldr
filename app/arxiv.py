@@ -6,7 +6,10 @@ from datetime import datetime
 
 ARXIV_API_URL = "https://export.arxiv.org/api/query"
 
-async def fetch_arxiv_papers(start_date: str, end_date: str, start: int = 0, max_results: int = 100):
+
+async def fetch_arxiv_papers(
+    start_date: str, end_date: str, start: int = 0, max_results: int = 100
+):
     query = f"submittedDate:[{start_date} TO {end_date}]"
     params = {
         "search_query": query,
@@ -23,7 +26,7 @@ async def fetch_arxiv_papers(start_date: str, end_date: str, start: int = 0, max
 def parse_arxiv_xml(xml_data: str):
     ns = {
         "atom": "http://www.w3.org/2005/Atom",
-        "arxiv": "http://arxiv.org/schemas/atom"
+        "arxiv": "http://arxiv.org/schemas/atom",
     }
     root = ET.fromstring(xml_data)
     entries = []
@@ -32,20 +35,21 @@ def parse_arxiv_xml(xml_data: str):
         arxiv_id = entry.find("atom:id", ns).text.split("/")[-1]
         title = entry.find("atom:title", ns).text.strip()
         # summary = entry.find("atom:summary", ns).text.strip()
-        summary = ''.join(entry.find("atom:summary", ns).itertext()).strip()
-        
+        summary = "".join(entry.find("atom:summary", ns).itertext()).strip()
+
         import sys
-        print('RAW:', entry.find("atom:summary", ns).text, file=sys.stderr)
-        print('FULL:', ''.join(entry.find("atom:summary", ns).itertext()).strip())
 
-
+        print("RAW:", entry.find("atom:summary", ns).text, file=sys.stderr)
+        print("FULL:", "".join(entry.find("atom:summary", ns).itertext()).strip())
 
         published_raw = entry.find("atom:published", ns).text
         updated_raw = entry.find("atom:updated", ns).text
         published = datetime.fromisoformat(published_raw.replace("Z", "+00:00"))
         updated = datetime.fromisoformat(updated_raw.replace("Z", "+00:00"))
 
-        authors = [a.find("atom:name", ns).text for a in entry.findall("atom:author", ns)]
+        authors = [
+            a.find("atom:name", ns).text for a in entry.findall("atom:author", ns)
+        ]
 
         links = entry.findall("atom:link", ns)
         url = None
@@ -56,15 +60,23 @@ def parse_arxiv_xml(xml_data: str):
             elif link.attrib.get("rel") == "alternate":
                 url = link.attrib["href"]
 
-        entries.append({
-            "arxiv_id": arxiv_id,
-            "title": title,
-            "summary": summary,
-            "published": published,
-            "updated": updated,
-            "authors": authors,
-            "url": url,
-            "pdf_url": pdf_url
-        })
+        # Primary and all categories
+        primary_category = entry.find("arxiv:primary_category", ns).attrib["term"]
+        all_categories = [c.attrib["term"] for c in entry.findall("atom:category", ns)]
+
+        entries.append(
+            {
+                "arxiv_id": arxiv_id,
+                "title": title,
+                "summary": summary,
+                "published": published,
+                "updated": updated,
+                "authors": authors,
+                "url": url,
+                "pdf_url": pdf_url,
+                "primary_category": primary_category,
+                "all_categories": all_categories,
+            }
+        )
 
     return entries

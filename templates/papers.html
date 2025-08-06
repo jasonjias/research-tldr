@@ -27,6 +27,19 @@
         <h2>{{ paper.title }}</h2>
         <p><strong>Published:</strong> {{ paper.published }}</p>
         <p><strong>Authors:</strong> {{ paper.authors }}</p>
+
+        {% if paper.categories %}
+        <p><strong>Categories:</strong>
+            {% for category in paper.categories %}
+            {% if category.is_primary %}
+            <span><strong>{{ category.term }}</strong></span>{% if not loop.last %}, {% endif %}
+            {% else %}
+            <span>{{ category.term }}</span>{% if not loop.last %}, {% endif %}
+            {% endif %}
+            {% endfor %}
+        </p>
+        {% endif %}
+
         <p><strong>Abstract:</strong><br>{{ paper.summary | safe }}</p>
         <p>
             <a href="{{ paper.url }}">arXiv Page</a> |
