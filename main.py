@@ -36,7 +36,7 @@ def show_papers():
         return papers
 
 
-@app.get("/arxiv/html", response_class=HTMLResponse)
+@app.get("/", response_class=HTMLResponse)
 def html_view(request: Request):
     with Session(engine) as session:
         stmt = select(ArxivPaper).order_by(ArxivPaper.published.desc()).limit(50)
