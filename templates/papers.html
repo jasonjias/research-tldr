@@ -22,8 +22,25 @@
 
 <body>
     <h1>arXiv Papers</h1>
+    <!-- Main Category Filters -->
+    <div id="category-filters">
+        <label for="main-category">Filter by Category:</label>
+        <select id="main-category" onchange="filterByMainCategory()">
+            <option value="all">All</option>
+            <option value="math">Mathematics</option>
+            <option value="cs">Computer Science</option>
+            <option value="physics">Physics</option>
+            <option value="stat">Statistics</option>
+            <option value="q-bio">Quantitative Biology</option>
+            <option value="q-fin">Quantitative Finance</option>
+            <option value="eess">Electrical Engineering & Systems Science</option>
+            <option value="econ">Economics</option>
+        </select>
+    </div>
     {% for paper in papers %}
-    <div>
+    {% set primary = paper.categories | selectattr("is_primary") | list | first %}
+    <div class="paper" data-main="{{ primary.term.split('.')[0] if primary else 'unknown' }}">
+
         <h2>{{ paper.title }}</h2>
         <p><strong>Published:</strong> {{ paper.published }}</p>
         <p><strong>Authors:</strong> {{ paper.authors }}</p>
@@ -45,8 +62,9 @@
             <a href="{{ paper.url }}">arXiv Page</a> |
             <a href="{{ paper.pdf_url }}">PDF</a>
         </p>
+        <hr>
     </div>
-    <hr>
+    <!-- <hr> -->
     {% endfor %}
 
     <script>
@@ -56,6 +74,22 @@
             }
         });
     </script>
+    <script>
+        function filterByMainCategory() {
+            const selected = document.getElementById('main-category').value;
+            const papers = document.querySelectorAll('.paper');
+
+            papers.forEach(paper => {
+                const mainCategory = paper.getAttribute('data-main');
+                if (selected === 'all' || mainCategory === selected) {
+                    paper.style.display = '';
+                } else {
+                    paper.style.display = 'none';
+                }
+            });
+        }
+    </script>
+
 </body>
 
 </html>
