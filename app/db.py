@@ -1,9 +1,14 @@
 # DB connection & save logic
 from sqlmodel import SQLModel, create_engine, Session
 from app.models import ArxivPaper, Category
+from dotenv import load_dotenv
+import os
 
-sqlite_file_name = "arxiv.db"
-engine = create_engine(f"sqlite:///{sqlite_file_name}")
+load_dotenv()
+
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+engine = create_engine(DATABASE_URL, echo=True)
 
 
 def init_db():
