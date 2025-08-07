@@ -37,9 +37,17 @@
             <option value="econ">Economics</option>
         </select>
     </div>
+
+    <div id="subcategory-filters" style="display: none;">
+        <label for="sub-category">Filter by Subcategory:</label>
+        <select id="sub-category" onchange="filterBySubCategory()">
+            <option value="all">All</option>
+        </select>
+    </div>
     {% for paper in papers %}
     {% set primary = paper.categories | selectattr("is_primary") | list | first %}
-    <div class="paper" data-main="{{ primary.term.split('.')[0] if primary else 'unknown' }}">
+    <div class="paper" data-main="{{ primary.term.split('.')[0] if primary else 'unknown' }}"
+        data-sub="{{ paper.categories | map(attribute='term') | join(',') }}">
 
         <h2>{{ paper.title }}</h2>
         <p><strong>Published:</strong> {{ paper.published }}</p>
@@ -82,6 +90,77 @@
             papers.forEach(paper => {
                 const mainCategory = paper.getAttribute('data-main');
                 if (selected === 'all' || mainCategory === selected) {
+                    paper.style.display = '';
+                } else {
+                    paper.style.display = 'none';
+                }
+            });
+        }
+    </script>
+    <script>
+        const subcategoryMap = {};
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const papers = document.querySelectorAll('.paper');
+
+            // Build subcategory map
+            papers.forEach(paper => {
+                const main = paper.getAttribute('data-main');
+                const subs = paper.getAttribute('data-sub').split(',');
+
+                if (!subcategoryMap[main]) {
+                    subcategoryMap[main] = new Set();
+                }
+
+                subs.forEach(sub => {
+                    if (sub.startsWith(main)) {
+                        subcategoryMap[main].add(sub);
+                    }
+                });
+            });
+        });
+
+        function filterByMainCategory() {
+            const selectedMain = document.getElementById('main-category').value;
+            const subFilterDiv = document.getElementById('subcategory-filters');
+            const subSelect = document.getElementById('sub-category');
+
+            // Update subcategory dropdown
+            if (selectedMain === 'all') {
+                subFilterDiv.style.display = 'none';
+            } else {
+                subFilterDiv.style.display = 'block';
+                subSelect.innerHTML = '<option value="all">All</option>';
+
+                const subs = Array.from(subcategoryMap[selectedMain] || []).sort();
+                for (const sub of subs) {
+                    const option = document.createElement('option');
+                    option.value = sub;
+                    option.textContent = sub;
+                    subSelect.appendChild(option);
+                }
+            }
+
+            filterPapers();
+        }
+
+        function filterBySubCategory() {
+            filterPapers();
+        }
+
+        function filterPapers() {
+            const selectedMain = document.getElementById('main-category').value;
+            const selectedSub = document.getElementById('sub-category').value;
+            const papers = document.querySelectorAll('.paper');
+
+            papers.forEach(paper => {
+                const main = paper.getAttribute('data-main');
+                const subs = paper.getAttribute('data-sub').split(',');
+
+                const matchMain = (selectedMain === 'all' || main === selectedMain);
+                const matchSub = (selectedSub === 'all' || subs.includes(selectedSub));
+
+                if (matchMain && matchSub) {
                     paper.style.display = '';
                 } else {
                     paper.style.display = 'none';
