@@ -9,9 +9,9 @@
         function gtag() { dataLayer.push(arguments); }
         gtag('js', new Date());
 
-        gtag('config', 'G-GTBGKSY5SM');
+        gtag('config', GA_MEASUREMENT_ID);
     </script>
-    
+
     <title>arXiv Papers</title>
     <script>
         window.MathJax = {
@@ -32,6 +32,15 @@
 
 
 <body>
+    <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px;">
+        {% if user %}
+        <img src="{{ user.picture }}" referrerpolicy="no-referrer" style="width:28px;height:28px;border-radius:50%">
+        <span>Signed in as {{ user.name or user.email }}</span>
+        <a href="/logout">Logout</a>
+        {% else %}
+        <a href="/login">Sign in with Google</a>
+        {% endif %}
+    </div>
     <h1>arXiv Papers</h1>
     <!-- Main Category Filters -->
     <div id="category-filters">
