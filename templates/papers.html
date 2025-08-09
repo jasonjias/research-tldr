@@ -3,13 +3,13 @@
 
 <head>
     <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-GTBGKSY5SM"></script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id={{ GA_MEASUREMENT_ID }}"></script>
     <script>
         window.dataLayer = window.dataLayer || [];
         function gtag() { dataLayer.push(arguments); }
         gtag('js', new Date());
 
-        gtag('config', GA_MEASUREMENT_ID);
+        gtag('config', '{{ GA_MEASUREMENT_ID }}');
     </script>
 
     <title>arXiv Papers</title>
@@ -188,6 +188,80 @@
                 }
             });
         }
+    </script>
+    <script>
+        // ---------- GA helper ----------
+        function trackEvent(name, params) {
+            if (window.gtag) window.gtag('event', name, params || {});
+        }
+
+        // After login: fire event and clean URL
+        (() => {
+            const p = new URLSearchParams(location.search);
+            if (p.has('login_success')) {
+                trackEvent('login', { method: 'google' });
+                history.replaceState(null, '', location.pathname);
+            }
+        })();
+    </script>
+
+    <script>
+        // ---------- Paper clicks (arXiv/PDF) ----------
+        document.addEventListener('click', (e) => {
+            const link = e.target.closest('a');
+            if (!link) return;
+
+            const url = link.getAttribute('href') || '';
+            const isPDF = url.toLowerCase().endsWith('.pdf');
+            const isArxiv = /arxiv\.org/.test(url);
+
+            if (isPDF || isArxiv) {
+                const paperEl = link.closest('.paper');
+                const title = paperEl?.querySelector('h2')?.textContent?.trim();
+                // Try to derive an arXiv ID if present in the URL
+                const idMatch = url.match(/arxiv\.org\/(?:abs|pdf)\/([^\s\/?#]+)/i);
+                const paperId = idMatch ? idMatch[1].replace(/\.pdf$/i, '') : undefined;
+
+                trackEvent('paper_open', {
+                    type: isPDF ? 'pdf' : 'arxiv',
+                    paper_id: paperId,
+                    paper_title: title
+                });
+            }
+        });
+    </script>
+
+    <script>
+        // ---------- Filter changes ----------
+        const mainSelect = document.getElementById('main-category');
+        const subSelect = document.getElementById('sub-category');
+
+        if (mainSelect) {
+            mainSelect.addEventListener('change', () => {
+                trackEvent('filter_change', { filter: 'main_category', value: mainSelect.value });
+            });
+        }
+        if (subSelect) {
+            subSelect.addEventListener('change', () => {
+                trackEvent('filter_change', {
+                    filter: 'sub_category',
+                    value: subSelect.value,
+                    main_category: mainSelect ? mainSelect.value : undefined
+                });
+            });
+        }
+    </script>
+
+    <script>
+        // ---------- Paper impressions on load (counts by main category) ----------
+        window.addEventListener('load', () => {
+            const counts = {};
+            document.querySelectorAll('.paper').forEach(p => {
+                const main = p.getAttribute('data-main') || 'unknown';
+                counts[main] = (counts[main] || 0) + 1;
+            });
+            trackEvent('paper_impressions', counts);
+        });
     </script>
 
 </body>

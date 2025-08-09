@@ -4,7 +4,6 @@
 from fastapi import FastAPI, Request
 from datetime import datetime, timedelta
 from sqlmodel import Session, select
-from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse
 from starlette.middleware.sessions import SessionMiddleware
@@ -61,7 +60,8 @@ async def auth_callback(request: Request):
         "name": userinfo.get("name"),
         "picture": userinfo.get("picture"),
     }
-    return RedirectResponse(url="/")
+    # return RedirectResponse(url="/")
+    return RedirectResponse(url="/?login_success=1")
 
 
 @app.get("/logout")
@@ -102,5 +102,6 @@ def html_view(request: Request):
                 "request": request,
                 "papers": papers,
                 "user": user,
+                "GA_MEASUREMENT_ID": GA_MEASUREMENT_ID,
             },
         )
