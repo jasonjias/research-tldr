@@ -31,7 +31,7 @@
 </head>
 
 
-<body>
+<body data-logged-in="{{ '1' if user else '' }}">
     <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px;">
         {% if user %}
         <img src="{{ user.picture }}" referrerpolicy="no-referrer" style="width:28px;height:28px;border-radius:50%">
@@ -41,6 +41,14 @@
         <a href="/login">Sign in with Google</a>
         {% endif %}
     </div>
+    {% if user %}
+    <nav class="view-switcher" style="margin: 12px 0;">
+        <a href="/" class="{{ 'font-bold' if active_view != 'bookmarks' else '' }}">All papers</a>
+        &nbsp;·&nbsp;
+        <a href="/bookmarks" class="{{ 'font-bold' if active_view == 'bookmarks' else '' }}">My bookmarks</a>
+    </nav>
+    {% endif %}
+
     <h1>arXiv Papers</h1>
     <!-- Main Category Filters -->
     <div id="category-filters">
@@ -57,6 +65,7 @@
             <option value="econ">Economics</option>
         </select>
     </div>
+
 
     <div id="subcategory-filters" style="display: none;">
         <label for="sub-category">Filter by Subcategory:</label>
@@ -91,6 +100,20 @@
             <a href="{{ paper.url }}">arXiv Page</a> |
             <a href="{{ paper.pdf_url }}">PDF</a>
         </p>
+        <!-- inside each paper card row (replace previous meta block) -->
+        <div class="meta" data-paper-id="{{ paper.id }}">
+            <span class="score">Score: <strong class="score-num">0</strong></span>
+            <button class="vote-up" title="Upvote">▲</button>
+            <button class="vote-down" title="Downvote">▼</button>
+
+            {% if user %}
+            <button class="bookmark-btn">🔖 Bookmark</button>
+            {% else %}
+            <a href="/login" class="bookmark-login">Sign in to 🔖</a>
+            {% endif %}
+
+            <span class="bookmarks">Bookmarks: <strong class="bookmarks-num">0</strong></span>
+        </div>
         <hr>
     </div>
     <!-- <hr> -->
@@ -263,6 +286,87 @@
             trackEvent('paper_impressions', counts);
         });
     </script>
+    <script>
+        (function () {
+            const loggedIn = !!document.body.dataset.loggedIn;
+
+            async function getJSON(url, opts) {
+                const r = await fetch(url, opts);
+                if (!r.ok) throw new Error(await r.text());
+                return r.json();
+            }
+
+            async function hydratePublicCounts() {
+                for (const m of document.querySelectorAll('.meta')) {
+                    const id = m.dataset.paperId;
+                    getJSON(`/api/papers/${id}/score`).then(d => {
+                        m.querySelector('.score-num').textContent = d.score;
+                    }).catch(() => { });
+                    getJSON(`/api/papers/${id}/bookmarks`).then(d => {
+                        m.querySelector('.bookmarks-num').textContent = d.count;
+                    }).catch(() => { });
+                }
+            }
+
+            // If not logged in, make sure no bookmark buttons linger from a previous session
+            function enforceLoggedOutState() {
+                if (loggedIn) return;
+                document.querySelectorAll('.bookmark-btn').forEach(btn => {
+                    const row = btn.closest('.meta');
+                    const link = document.createElement('a');
+                    link.href = '/login';
+                    link.className = 'bookmark-login';
+                    link.textContent = 'Sign in to 🔖';
+                    btn.replaceWith(link);
+                });
+            }
+
+            document.addEventListener('click', async (e) => {
+                const row = e.target.closest('.meta');
+                if (!row) return;
+                const id = row.dataset.paperId;
+
+                if (e.target.closest('.vote-up') || e.target.closest('.vote-down')) {
+                    const value = e.target.closest('.vote-up') ? 1 : -1;
+                    try {
+                        const d = await getJSON(`/api/papers/${id}/vote`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ value })
+                        });
+                        row.querySelector('.score-num').textContent = d.score;
+                    } catch {
+                        if (confirm('Please sign in to vote. Go to login?')) location.href = '/login';
+                    }
+                    return;
+                }
+
+                if (e.target.closest('.bookmark-btn')) {
+                    if (!loggedIn) { location.href = '/login'; return; }
+                    const btn = e.target.closest('.bookmark-btn');
+                    const isBookmarked = btn.textContent.includes('✅');
+                    try {
+                        if (isBookmarked) {
+                            await getJSON(`/api/papers/${id}/bookmark`, { method: 'DELETE' });
+                        } else {
+                            await getJSON(`/api/papers/${id}/bookmark`, { method: 'POST' });
+                        }
+                        const d = await getJSON(`/api/papers/${id}/bookmarks`);
+                        row.querySelector('.bookmarks-num').textContent = d.count;
+                        btn.textContent = isBookmarked ? '🔖 Bookmark' : '✅ Bookmarked';
+                    } catch {
+                        if (confirm('Please sign in to bookmark papers. Go to login?')) location.href = '/login';
+                    }
+                }
+            });
+
+            window.addEventListener('load', async () => {
+                enforceLoggedOutState();
+                await hydratePublicCounts();
+            });
+        })();
+    </script>
+
 
 </body>
 

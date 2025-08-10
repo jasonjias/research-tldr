@@ -1,5 +1,5 @@
-# SQLModel definitions
-from sqlmodel import SQLModel, Field, Relationship
+# app/models.py
+from sqlmodel import SQLModel, Field, Relationship, UniqueConstraint
 from typing import List, Optional
 from datetime import datetime
 
@@ -8,9 +8,7 @@ class Category(SQLModel, table=True):
     term: str
     is_primary: bool = False
     paper_id: Optional[int] = Field(default=None, foreign_key="arxivpaper.id")
-
     paper: Optional["ArxivPaper"] = Relationship(back_populates="categories")
-
 
 class ArxivPaper(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -21,10 +19,29 @@ class ArxivPaper(SQLModel, table=True):
     published_raw: Optional[str] = None
     updated: datetime
     updated_raw: Optional[str] = None
-    authors: str  # comma-separated string
+    authors: str
     url: str
     pdf_url: Optional[str]
-
     categories: List[Category] = Relationship(back_populates="paper")
 
-Category.paper = Relationship(back_populates="categories")
+# ---- NEW: users, bookmarks, votes ----
+
+class User(SQLModel, table=True):
+    # Google sub is globally unique & stable
+    sub: str = Field(primary_key=True)
+    email: Optional[str] = None
+    name: Optional[str] = None
+    picture: Optional[str] = None
+
+class Bookmark(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_sub: str = Field(foreign_key="user.sub")
+    paper_id: int = Field(foreign_key="arxivpaper.id")
+    __table_args__ = (UniqueConstraint("user_sub", "paper_id", name="uq_bookmark_user_paper"),)
+
+class Vote(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_sub: str = Field(foreign_key="user.sub")
+    paper_id: int = Field(foreign_key="arxivpaper.id")
+    value: int = Field(default=0)  # -1, 0, or +1
+    __table_args__ = (UniqueConstraint("user_sub", "paper_id", name="uq_vote_user_paper"),)
