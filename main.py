@@ -4,6 +4,7 @@
 from fastapi import FastAPI, Request, HTTPException, Depends
 from datetime import datetime, timedelta
 from sqlmodel import Session, select
+from sqlalchemy import func
 from sqlalchemy.orm import selectinload
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -14,7 +15,7 @@ import os
 
 from app.arxiv import fetch_arxiv_papers
 from app.db import init_db, save_papers, engine
-from app.models import ArxivPaper, User, Bookmark, Vote
+from app.models import ArxivPaper, User, Bookmark, Vote, UserSettings
 
 # --- load env ---
 load_dotenv()
@@ -57,10 +58,17 @@ async def login(request: Request):
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
 
+def no_store(resp):
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
 @app.get("/logout")
 async def logout(request: Request):
     request.session.clear()
-    return RedirectResponse(url="/")
+    resp = RedirectResponse(url="/")
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
 
 
 # -- after Google callback, upsert the user --
@@ -86,33 +94,27 @@ async def auth_callback(request: Request):
     return RedirectResponse(url="/?login_success=1")
 
 
-def require_user(request: Request) -> str:
-    user = request.session.get("user")
-    if not user:
+# def sub = require_user_sub(request)request: Request) -> str:
+#     user = request.session.get("user")
+#     if not user:
+#         raise HTTPException(status_code=401, detail="Login required")
+#     return user["sub"]
+
+
+def require_user_obj(request: Request) -> dict:
+    u = request.session.get("user")
+    if not u:
         raise HTTPException(status_code=401, detail="Login required")
-    return user["sub"]
+    return u
+
+
+def require_user_sub(request: Request) -> str:
+    return require_user_obj(request)["sub"]
 
 
 # --- Bookmarks ---
-@app.post("/api/papers/{paper_id}/bookmark")
-def bookmark_paper(paper_id: int, request: Request):
-    sub = require_user(request)
-    with Session(engine) as s:
-        if s.get(ArxivPaper, paper_id) is None:
-            raise HTTPException(404, "Paper not found")
-        exists = s.exec(
-            select(Bookmark).where(
-                Bookmark.user_sub == sub, Bookmark.paper_id == paper_id
-            )
-        ).first()
-        if not exists:
-            s.add(Bookmark(user_sub=sub, paper_id=paper_id))
-            s.commit()
-        return {"bookmarked": True}
-
-
 @app.get("/bookmarks", response_class=HTMLResponse)
-def my_bookmarks(request: Request, user_sub: str = Depends(require_user)):
+def my_bookmarks(request: Request, user_sub: str = Depends(require_user_sub)):
     with Session(engine) as s:
         papers = s.exec(
             select(ArxivPaper)
@@ -134,62 +136,156 @@ def my_bookmarks(request: Request, user_sub: str = Depends(require_user)):
     )
 
 
+# ---- Bookmarks ----
+@app.get("/api/papers/{paper_id}/bookmarks")
+def get_bookmark_count(paper_id: int, request: Request):
+    user = request.session.get("user")
+    if not user:
+        # not logged in → hide count
+        return {"count": 0}
+
+    from sqlalchemy import func
+
+    with Session(engine) as session:
+        count = session.exec(
+            select(func.count())
+            .select_from(Bookmark)
+            .where(Bookmark.paper_id == paper_id)
+        ).one()
+        return {"count": count}
+
+
+@app.post("/api/papers/{paper_id}/bookmark")
+def add_bookmark(paper_id: int, request: Request):
+    sub = require_user_sub(request)
+    with Session(engine) as session:
+        # ensure paper exists
+        ok = session.exec(
+            select(ArxivPaper.id).where(ArxivPaper.id == paper_id)
+        ).first()
+        if not ok:
+            raise HTTPException(404, "Paper not found")
+
+        # ensure user exists
+        u = session.get(User, sub)
+        if not u:
+            u = User(
+                sub=sub,
+                name=user.get("name"),
+                email=user.get("email"),
+                picture=user.get("picture"),
+            )
+            session.add(u)
+            session.commit()
+
+        # insert if not exists
+        exists = session.exec(
+            select(Bookmark.id).where(
+                Bookmark.user_sub == sub, Bookmark.paper_id == paper_id
+            )
+        ).first()
+        if not exists:
+            session.add(Bookmark(user_sub=sub, paper_id=paper_id))
+            session.commit()
+        return {"ok": True}
+
+
 @app.delete("/api/papers/{paper_id}/bookmark")
-def unbookmark_paper(paper_id: int, request: Request):
-    sub = require_user(request)
-    with Session(engine) as s:
-        bm = s.exec(
+def remove_bookmark(paper_id: int, request: Request):
+    sub = require_user_sub(request)
+    with Session(engine) as session:
+        row = session.exec(
             select(Bookmark).where(
                 Bookmark.user_sub == sub, Bookmark.paper_id == paper_id
             )
         ).first()
-        if bm:
-            s.delete(bm)
-            s.commit()
-        return {"bookmarked": False}
+        if row:
+            session.delete(row)
+            session.commit()
+        return {"ok": True}
 
 
-@app.get("/api/papers/{paper_id}/bookmarks")
-def bookmark_count(paper_id: int):
-    with Session(engine) as s:
-        cnt = s.exec(select(Bookmark).where(Bookmark.paper_id == paper_id)).all()
-        return {"count": len(cnt)}
+# ---- Scores / votes ----
+@app.get("/api/papers/{paper_id}/score")
+def get_paper_score(paper_id: int):
+    with Session(engine) as session:
+        total = session.exec(select(Vote.value).where(Vote.paper_id == paper_id)).all()
+        score = sum(total) if total else 0
+        return {"score": score}
 
 
-# -------- Votes --------
 @app.post("/api/papers/{paper_id}/vote")
-def vote_paper(paper_id: int, request: Request, payload: dict):
-    """
-    payload = {"value": -1|0|1}   0 clears vote
-    """
-    sub = require_user(request)
-    val = int(payload.get("value", 0))
-    if val not in (-1, 0, 1):
-        raise HTTPException(400, "value must be -1, 0, or 1")
-    with Session(engine) as s:
-        if s.get(ArxivPaper, paper_id) is None:
+def vote_paper(paper_id: int, body: dict, request: Request):
+    sub = require_user_sub(request)  # get logged-in user's sub
+    value = int(body.get("value", 0))  # read from request body
+
+    if value not in (-1, 0, 1):
+        raise HTTPException(400, "value must be -1 or 1")
+
+    with Session(engine) as session:
+        # ensure paper exists
+        ok = session.exec(
+            select(ArxivPaper.id).where(ArxivPaper.id == paper_id)
+        ).first()
+        if not ok:
             raise HTTPException(404, "Paper not found")
-        v = s.exec(
+
+        # ensure user exists
+        u = session.get(User, sub)
+        if not u:
+            # minimal upsert in case user row not created yet
+            u = User(
+                sub=sub,
+                name=None,  # You can fetch from session if needed
+                email=None,
+                picture=None,
+            )
+            session.add(u)
+            session.commit()
+
+        # upsert vote (unique on user_sub, paper_id)
+        existing = session.exec(
             select(Vote).where(Vote.user_sub == sub, Vote.paper_id == paper_id)
         ).first()
-        if v is None:
-            v = Vote(user_sub=sub, paper_id=paper_id, value=val)
-            s.add(v)
+        if existing:
+            existing.value = value
         else:
-            v.value = val
-        s.commit()
+            session.add(Vote(user_sub=sub, paper_id=paper_id, value=value))
+        session.commit()
+
         # return new score
-        total = s.exec(select(Vote).where(Vote.paper_id == paper_id)).all()
-        score = sum(x.value for x in total)
-        return {"score": score, "your_vote": val}
+        total = session.exec(select(Vote.value).where(Vote.paper_id == paper_id)).all()
+        return {"score": sum(total) if total else 0}
 
 
-@app.get("/api/papers/{paper_id}/score")
-def vote_score(paper_id: int):
-    # visible to everyone (even logged-out)
-    with Session(engine) as s:
-        total = s.exec(select(Vote).where(Vote.paper_id == paper_id)).all()
-        return {"score": sum(x.value for x in total)}
+
+@app.get("/api/user/settings")
+def get_user_settings(request: Request):
+    sub = require_user_sub(request)
+    with Session(engine) as session:
+        s = session.get(UserSettings, sub)
+        if not s:
+            return {"user_sub": sub, "prefs": {}, "updated_at": None}
+        return {"user_sub": s.user_sub, "prefs": s.prefs, "updated_at": s.updated_at}
+
+
+@app.post("/api/user/settings")
+def upsert_user_settings(body: dict, request: Request):
+    sub = require_user_sub(request)
+    prefs = body.get("prefs") or {}
+    if not isinstance(prefs, dict):
+        raise HTTPException(400, "prefs must be an object")
+
+    with Session(engine) as session:
+        s = session.get(UserSettings, sub)
+        if s:
+            s.prefs = prefs
+            s.updated_at = datetime.utcnow()
+        else:
+            s = UserSettings(user_sub=sub, prefs=prefs)
+            session.add(s)
+        session.commit()
+        return {"ok": True}
 
 
 @app.get("/arxiv/daily")

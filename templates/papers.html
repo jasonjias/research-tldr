@@ -107,12 +107,15 @@
             <button class="vote-down" title="Downvote">▼</button>
 
             {% if user %}
-            <button class="bookmark-btn">🔖 Bookmark</button>
+            <button class="bookmark-btn" data-paper-id="{{ paper.id }}">🔖 Bookmark</button>
+            <span class="bookmarks">
+                Bookmarks: <strong class="bookmarks-num" data-paper-id="{{ paper.id }}">—</strong>
+            </span>
             {% else %}
-            <a href="/login" class="bookmark-login">Sign in to 🔖</a>
+            <button class="bookmark-btn" data-paper-id="{{ paper.id }}">🔖 Bookmark</button>
             {% endif %}
 
-            <span class="bookmarks">Bookmarks: <strong class="bookmarks-num">0</strong></span>
+
         </div>
         <hr>
     </div>
@@ -290,10 +293,18 @@
         (function () {
             const loggedIn = !!document.body.dataset.loggedIn;
 
-            async function getJSON(url, opts) {
-                const r = await fetch(url, opts);
-                if (!r.ok) throw new Error(await r.text());
-                return r.json();
+            async function getJSON(url, opts = {}) {
+                const r = await fetch(url, { credentials: 'same-origin', ...opts });
+                let text = await r.text();
+                let data;
+                try { data = text ? JSON.parse(text) : null; } catch { data = { detail: text }; }
+                if (!r.ok) {
+                    const err = new Error((data && (data.detail || data.message)) || 'Request failed');
+                    err.status = r.status;
+                    err.body = data;
+                    throw err;
+                }
+                return data;
             }
 
             async function hydratePublicCounts() {
@@ -302,23 +313,17 @@
                     getJSON(`/api/papers/${id}/score`).then(d => {
                         m.querySelector('.score-num').textContent = d.score;
                     }).catch(() => { });
-                    getJSON(`/api/papers/${id}/bookmarks`).then(d => {
-                        m.querySelector('.bookmarks-num').textContent = d.count;
-                    }).catch(() => { });
-                }
-            }
 
-            // If not logged in, make sure no bookmark buttons linger from a previous session
-            function enforceLoggedOutState() {
-                if (loggedIn) return;
-                document.querySelectorAll('.bookmark-btn').forEach(btn => {
-                    const row = btn.closest('.meta');
-                    const link = document.createElement('a');
-                    link.href = '/login';
-                    link.className = 'bookmark-login';
-                    link.textContent = 'Sign in to 🔖';
-                    btn.replaceWith(link);
-                });
+                    // If not logged in, you can skip fetching bookmark counts if desired
+                    if (loggedIn) {
+                        getJSON(`/api/papers/${id}/bookmarks`).then(d => {
+                            m.querySelector('.bookmarks-num').textContent = d.count;
+                        }).catch(() => { });
+                    } else {
+                        // Hide or clear bookmark count for logged-out users
+                        m.querySelector('.bookmarks-num').textContent = '';
+                    }
+                }
             }
 
             document.addEventListener('click', async (e) => {
@@ -326,23 +331,44 @@
                 if (!row) return;
                 const id = row.dataset.paperId;
 
+                // Votes
                 if (e.target.closest('.vote-up') || e.target.closest('.vote-down')) {
-                    const value = e.target.closest('.vote-up') ? 1 : -1;
+                    const upBtn = row.querySelector('.vote-up');
+                    const downBtn = row.querySelector('.vote-down');
+                    const currentScoreEl = row.querySelector('.score-num');
+
+                    // Read current state from a data attribute (or class)
+                    const currentVote = row.dataset.myVote ? parseInt(row.dataset.myVote) : 0;
+
+                    let newValue;
+                    if (e.target.closest('.vote-up')) {
+                        newValue = currentVote === 1 ? 0 : 1;   // clear if already upvoted
+                    } else {
+                        newValue = currentVote === -1 ? 0 : -1; // clear if already downvoted
+                    }
+
                     try {
                         const d = await getJSON(`/api/papers/${id}/vote`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ value })
+                            body: JSON.stringify({ value: newValue }),
+                            credentials: 'same-origin'
                         });
-                        row.querySelector('.score-num').textContent = d.score;
+                        currentScoreEl.textContent = d.score;
+                        row.dataset.myVote = newValue; // store new state
                     } catch {
                         if (confirm('Please sign in to vote. Go to login?')) location.href = '/login';
                     }
                     return;
                 }
 
+                // Bookmarks
                 if (e.target.closest('.bookmark-btn')) {
-                    if (!loggedIn) { location.href = '/login'; return; }
+                    if (!loggedIn) {
+                        // Redirect to login if not signed in
+                        location.href = '/login';
+                        return;
+                    }
                     const btn = e.target.closest('.bookmark-btn');
                     const isBookmarked = btn.textContent.includes('✅');
                     try {
@@ -361,13 +387,10 @@
             });
 
             window.addEventListener('load', async () => {
-                enforceLoggedOutState();
                 await hydratePublicCounts();
             });
         })();
     </script>
-
-
 </body>
 
 </html>
