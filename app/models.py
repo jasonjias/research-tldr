@@ -28,11 +28,17 @@ class ArxivPaper(SQLModel, table=True):
     pdf_url: Optional[str]
     categories: List[Category] = Relationship(back_populates="paper")
 
+    # NEW: LLM summary fields
+    llm_summary: Optional[str] = None
+    summary_model: Optional[str] = None
+    summary_pdf_sha256: Optional[str] = Field(default=None, index=True)
+    summary_updated_at: Optional[datetime] = None
+
 
 class UserSettings(SQLModel, table=True):
     user_sub: str = Field(primary_key=True, foreign_key="user.sub")
     # map dict -> JSON column
-    prefs: dict = Field(sa_column=Column(JSON, nullable=False, server_default='{}'))
+    prefs: dict = Field(sa_column=Column(JSON, nullable=False, server_default="{}"))
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 

@@ -1,7 +1,8 @@
 # app/main.py
 # FastAPI routes
 
-from fastapi import FastAPI, Request, HTTPException, Depends
+from fastapi import FastAPI, Request, HTTPException, Depends, BackgroundTasks, Query
+from app.summarize_runner import summarize_missing_papers
 from datetime import datetime, timedelta
 from sqlmodel import Session, select
 from sqlalchemy import func
@@ -258,7 +259,6 @@ def vote_paper(paper_id: int, body: dict, request: Request):
         return {"score": sum(total) if total else 0}
 
 
-
 @app.get("/api/user/settings")
 def get_user_settings(request: Request):
     sub = require_user_sub(request)
@@ -289,7 +289,7 @@ def upsert_user_settings(body: dict, request: Request):
 
 
 @app.get("/arxiv/daily")
-async def get_daily_arxiv():
+async def get_daily_arxiv(background: BackgroundTasks):
     today = datetime.utcnow()
     yesterday = today - timedelta(days=3)
     start = yesterday.strftime("%Y%m%d0000")
@@ -297,7 +297,18 @@ async def get_daily_arxiv():
 
     parsed = await fetch_arxiv_papers(start, end)
     save_papers(parsed)
-    return {"stored": len(parsed)}
+
+    # summarize any newly saved papers that lack a summary
+    background.add_task(summarize_missing_papers)
+
+    return {"stored": len(parsed), "summarization": "scheduled"}
+
+
+# Manual summarization
+@app.post("/cron/summarize")
+async def cron_summarize(limit: int = Query(10, ge=1, le=100)):
+    updated = await summarize_missing_papers(limit=limit)
+    return {"summaries_written": updated, "limit": limit}
 
 
 @app.get("/arxiv/show")

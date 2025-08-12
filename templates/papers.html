@@ -96,6 +96,20 @@
         {% endif %}
 
         <p><strong>Abstract:</strong><br>{{ paper.summary | safe }}</p>
+
+        {% if paper.llm_summary %}
+        <details style="margin-top:8px;">
+            <summary>
+                <strong>Summary</strong>
+                ({{ paper.summary_model or 'N/A' }}
+                — added {{ paper.summary_updated_at.strftime('%Y-%m-%d %H:%M UTC') if paper.summary_updated_at else
+                'unknown' }})
+            </summary>
+            <div style="white-space:pre-wrap;margin-top:6px;">
+                {{ paper.llm_summary }}
+            </div>
+        </details>
+        {% endif %}
         <p>
             <a href="{{ paper.url }}">arXiv Page</a> |
             <a href="{{ paper.pdf_url }}">PDF</a>
