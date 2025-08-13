@@ -1,0 +1,28 @@
+{
+  "tldr": "This paper introduces LLM-based agents for automated confounder discovery and subgroup analysis in causal inference, enhancing treatment effect estimation while reducing expert workload. The approach integrates reasoning capabilities of LLMs into causal machine learning frameworks.",
+  "whats_new": [
+    "• Proposes an AI-in-the-loop framework using LLMs for confounder discovery.",
+    "• Balances interpretability and accuracy in estimating heterogeneous treatment effects.",
+    "• Reduces reliance on domain experts through automated confounder identification.",
+    "• Demonstrates effectiveness on real-world medical datasets."
+  ],
+  "method": "The framework employs a Mixture of Experts (MoE) model with causal trees, iteratively verifying confounders using LLM-based agents. It partitions data into subgroups, extracts decision rules, and refines estimates through uncertainty evaluation.",
+  "results": [
+    "• Achieves narrower confidence intervals for treatment effect estimates, indicating greater precision.",
+    "• Identifies confounding variables that traditional methods often overlook.",
+    "• Reduces expert workload by automating confounder identification and validation.",
+    "• Demonstrates improved robustness in treatment effect estimation on medical datasets."
+  ],
+  "limitations": [
+    "• The framework's performance may vary with different datasets and contexts.",
+    "• Potential challenges in integrating LLMs with existing causal ML workflows.",
+    "• Reliance on the quality of the underlying data and LLMs' knowledge base."
+  ],
+  "why_useful": "This paper addresses critical challenges in causal inference by leveraging LLMs to automate confounder discovery, making the process more efficient and scalable. It has significant implications for healthcare research and personalized medicine, where accurate treatment effect estimation is vital.",
+  "provenance": {
+    "page_citations": [],
+    "code_data_availability": "Not provided.",
+    "summary_model": "gpt-4o-mini",
+    "summary_prompt_version": "v1"
+  }
+}

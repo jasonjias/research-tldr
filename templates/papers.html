@@ -101,13 +101,17 @@
         <details style="margin-top:8px;">
             <summary>
                 <strong>Summary</strong>
-                ({{ paper.summary_model or 'N/A' }}
-                — added {{ paper.summary_updated_at.strftime('%Y-%m-%d %H:%M UTC') if paper.summary_updated_at else
-                'unknown' }})
+                ({{ paper.summary_model or 'N/A' }} — added
+                {{ paper.summary_updated_at.strftime('%Y-%m-%d %H:%M UTC') if paper.summary_updated_at else 'unknown'
+                }})
             </summary>
-            <div style="white-space:pre-wrap;margin-top:6px;">
-                {{ paper.llm_summary }}
-            </div>
+
+            <!-- We'll render nicely if llm_summary is JSON; otherwise we show it as-is -->
+            <div class="llm-summary" data-json="{{ paper.llm_summary | e }}"
+                style="margin-top:6px; white-space:normal;"></div>
+            <pre class="llm-summary-fallback" style="white-space:pre-wrap; margin-top:6px; display:none;">
+            {{ paper.llm_summary }}
+            </pre>
         </details>
         {% endif %}
         <p>
@@ -405,6 +409,84 @@
             });
         })();
     </script>
+    <script>
+        (function () {
+            // Remove leading bullet/numbering like "• ", "- ", "— ", "* ", "1. ", "2) ", etc.
+            function cleanItemText(s) {
+                if (!s) return "";
+                s = String(s);
+                // Strip common bullet characters and numeric prefixes
+                s = s.replace(/^\s*([•\-\u2013\u2014\*]|\d+[\.\)])\s+/, ""); // • - – — * or 1. / 2)
+                // Also collapse accidental double bullets inside the text
+                s = s.replace(/^\s*•\s*/, "");
+                return s.trim();
+            }
+            const esc = (t) => String(t || "").replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+            const ul = (arr) => (arr && arr.length)
+                ? `<ul style="margin:6px 0 12px 1.25em; list-style:disc; list-style-position:outside;">${arr.map(x => `<li>${esc(cleanItemText(x))}</li>`).join('')
+                }</ul>`
+                : '';
+
+            function renderSummary(json) {
+                let html = "";
+                if (json.tldr) {
+                    html += `<h4 style="margin:8px 0 4px;">TL;DR</h4><p style="margin:0 0 10px;">${esc(json.tldr)}</p>`;
+                }
+                if (json.whats_new && json.whats_new.length) {
+                    html += `<h4 style="margin:8px 0 4px;">What’s new</h4>${ul(json.whats_new)}`;
+                }
+                if (json.method) {
+                    html += `<h4 style="margin:8px 0 4px;">Method (plain English)</h4><p style="margin:0 0 10px;">${esc(json.method)}</p>`;
+                }
+                if (json.results && json.results.length) {
+                    html += `<h4 style="margin:8px 0 4px;">Results</h4>${ul(json.results)}`;
+                }
+                if (json.limitations && json.limitations.length) {
+                    html += `<h4 style="margin:8px 0 4px;">Limitations</h4>${ul(json.limitations)}`;
+                }
+                if (json.why_useful) {
+                    html += `<h4 style="margin:8px 0 4px;">Why it’s useful</h4><p style="margin:0 0 10px;">${esc(json.why_useful)}</p>`;
+                }
+                const prov = json.provenance || {};
+                const bits = [];
+                if (prov.code_data_availability) bits.push(`Code/Data: ${esc(prov.code_data_availability)}`);
+                if (Array.isArray(prov.page_citations) && prov.page_citations.length) {
+                    bits.push(`Citations: ${esc(prov.page_citations.join(', '))}`);
+                }
+                if (bits.length) html += `<div style="margin-top:8px; font-size:0.95em; opacity:0.85;">${bits.join(' • ')}</div>`;
+                return html || null;
+            }
+
+            document.querySelectorAll('.llm-summary').forEach(node => {
+                const raw = node.getAttribute('data-json') || '';
+                if (!raw.trim().startsWith('{')) {
+                    node.style.display = 'none';
+                    const pre = node.parentElement.querySelector('.llm-summary-fallback');
+                    if (pre) pre.style.display = '';
+                    return;
+                }
+                try {
+                    const json = JSON.parse(raw);
+                    const html = renderSummary(json);
+                    if (html) {
+                        node.innerHTML = html;
+                        const pre = node.parentElement.querySelector('.llm-summary-fallback');
+                        if (pre) pre.style.display = 'none';
+                    } else {
+                        node.style.display = 'none';
+                        const pre = node.parentElement.querySelector('.llm-summary-fallback');
+                        if (pre) pre.style.display = '';
+                    }
+                } catch {
+                    node.style.display = 'none';
+                    const pre = node.parentElement.querySelector('.llm-summary-fallback');
+                    if (pre) pre.style.display = '';
+                }
+            });
+        })();
+    </script>
+
+
 </body>
 
 </html>
