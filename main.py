@@ -2,6 +2,7 @@
 # FastAPI routes
 
 from fastapi import FastAPI, Request, HTTPException, Depends, BackgroundTasks, Query
+import asyncio, anyio
 from app.summarize_runner import summarize_missing_papers
 from datetime import datetime, timedelta
 from sqlmodel import Session, select
@@ -286,6 +287,24 @@ def upsert_user_settings(body: dict, request: Request):
         return {"ok": True}
 
 
+daily_lock = asyncio.Lock()
+
+
+async def run_daily_pipeline(start: str, end: str):
+    if daily_lock.locked():
+        # already running; skip (or log)
+        return
+    async with daily_lock:
+        # 1) fetch (async)
+        parsed = await fetch_arxiv_papers(start, end)
+
+        # 2) save to DB (sync -> offload to thread so we don't block the event loop)
+        await anyio.to_thread.run_sync(save_papers, parsed)
+
+        # 3) summarize (async)
+        await summarize_missing_papers()
+
+
 @app.get("/arxiv/daily")
 async def get_daily_arxiv(background: BackgroundTasks):
     today = datetime.utcnow()
@@ -293,13 +312,16 @@ async def get_daily_arxiv(background: BackgroundTasks):
     start = yesterday.strftime("%Y%m%d0000")
     end = today.strftime("%Y%m%d2359")
 
-    parsed = await fetch_arxiv_papers(start, end)
-    save_papers(parsed)
+    # parsed = await fetch_arxiv_papers(start, end)
+    # save_papers(parsed)
 
-    # summarize any newly saved papers that lack a summary
-    background.add_task(summarize_missing_papers)
+    # # summarize any newly saved papers that lack a summary
+    # background.add_task(summarize_missing_papers)
 
-    return {"stored": len(parsed), "summarization": "scheduled"}
+    # return {"stored": len(parsed), "summarization": "scheduled"}
+
+    background.add_task(run_daily_pipeline, start, end)
+    return {"scheduled": True, "start": start, "end": end}
 
 
 # Manual summarization
