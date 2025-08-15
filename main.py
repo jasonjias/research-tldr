@@ -139,21 +139,19 @@ def my_bookmarks(request: Request, user_sub: str = Depends(require_user_sub)):
 
 # ---- Bookmarks ----
 @app.get("/api/papers/{paper_id}/bookmarks")
-def get_bookmark_count(paper_id: int, request: Request):
+def get_personal_bookmark_state(paper_id: int, request: Request):
+    """Return 1 if current user bookmarked, else 0. For logged-out users, 0."""
     user = request.session.get("user")
     if not user:
-        # not logged in → hide count
-        return {"count": 0}
-
-    from sqlalchemy import func
-
+        return {"mine": 0}
+    sub = user["sub"]
     with Session(engine) as session:
-        count = session.exec(
-            select(func.count())
-            .select_from(Bookmark)
-            .where(Bookmark.paper_id == paper_id)
-        ).one()
-        return {"count": count}
+        exists = session.exec(
+            select(Bookmark.id).where(
+                Bookmark.user_sub == sub, Bookmark.paper_id == paper_id
+            )
+        ).first()
+        return {"mine": 1 if exists else 0}
 
 
 @app.post("/api/papers/{paper_id}/bookmark")
