@@ -68,7 +68,41 @@
         .bookmark-toggle:hover .bm-shape {
             opacity: 0.85;
         }
+
+        .visibility-toggle {
+            appearance: none;
+            border: 0;
+            background: transparent;
+            cursor: pointer;
+            padding: 6px 6px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .visibility-toggle:focus {
+            outline: 2px solid #ddd;
+            outline-offset: 2px;
+            border-radius: 4px;
+        }
+
+        .paper.collapsed .paper-body {
+            display: none;
+        }
+
+        .paper .title-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .vis-icon {
+            width: 20px;
+            height: 20px;
+            display: block
+        }
     </style>
+
 </head>
 
 
@@ -520,7 +554,192 @@
             window.addEventListener('load', hydrate);
         })();
     </script>
+    <script>
+        const LS_KEYS = {
+            MAIN: 'rtldr.mainCategory',
+            SUB: 'rtldr.subCategory',
+        };
 
+        document.addEventListener("DOMContentLoaded", () => {
+            const papers = document.querySelectorAll('.paper');
+
+            // Build subcategory map
+            papers.forEach(paper => {
+                const main = paper.getAttribute('data-main');
+                const subs = paper.getAttribute('data-sub').split(',');
+
+                if (!subcategoryMap[main]) subcategoryMap[main] = new Set();
+                subs.forEach(sub => { if (sub.startsWith(main)) subcategoryMap[main].add(sub); });
+            });
+
+            // NEW: restore saved category/subcategory
+            const mainSel = document.getElementById('main-category');
+            const subSel = document.getElementById('sub-category');
+            const savedMain = localStorage.getItem(LS_KEYS.MAIN);
+            const savedSub = localStorage.getItem(LS_KEYS.SUB);
+
+            if (mainSel && savedMain && [...mainSel.options].some(o => o.value === savedMain)) {
+                mainSel.value = savedMain;
+                // Ensure subcategory list is rebuilt before applying saved sub
+                filterByMainCategory();
+                if (subSel && savedSub && [...subSel.options].some(o => o.value === savedSub)) {
+                    subSel.value = savedSub;
+                }
+            }
+
+            // Apply filters on initial load
+            filterPapers();
+        });
+
+        function filterByMainCategory() {
+            const selectedMain = document.getElementById('main-category').value;
+            const subFilterDiv = document.getElementById('subcategory-filters');
+            const subSelect = document.getElementById('sub-category');
+
+            // Persist (NEW)
+            localStorage.setItem(LS_KEYS.MAIN, selectedMain);
+
+            // Update subcategory dropdown
+            if (selectedMain === 'all') {
+                subFilterDiv.style.display = 'none';
+            } else {
+                subFilterDiv.style.display = 'block';
+                subSelect.innerHTML = '<option value="all">All</option>';
+                const subs = Array.from(subcategoryMap[selectedMain] || []).sort();
+                for (const sub of subs) {
+                    const option = document.createElement('option');
+                    option.value = sub;
+                    option.textContent = sub;
+                    subSelect.appendChild(option);
+                }
+            }
+
+            filterPapers();
+        }
+
+        function filterBySubCategory() {
+            const sub = document.getElementById('sub-category').value;
+            // Persist (NEW)
+            localStorage.setItem(LS_KEYS.SUB, sub);
+            filterPapers();
+        }
+
+        function filterPapers() {
+            const selectedMain = document.getElementById('main-category').value;
+            const selectedSub = document.getElementById('sub-category').value;
+            const papers = document.querySelectorAll('.paper');
+
+            papers.forEach(paper => {
+                const main = paper.getAttribute('data-main');
+                const subs = paper.getAttribute('data-sub').split(',');
+
+                const matchMain = (selectedMain === 'all' || main === selectedMain);
+                const matchSub = (!selectedSub || selectedSub === 'all' || subs.includes(selectedSub));
+
+                paper.style.display = (matchMain && matchSub) ? '' : 'none';
+            });
+        }
+    </script>
+    <script>
+        (function () {
+            const KEY = (id) => `rtldr.paperVisibility.${id}`; // 'open' | 'closed'
+
+            // SVGs for eye open/closed
+            const eyeOpenSVG = `
+    <svg class="vis-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12Z" fill="none" stroke="currentColor" stroke-width="1.8"/>
+      <circle cx="12" cy="12" r="3.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+    </svg>`;
+            const eyeClosedSVG = `
+    <svg class="vis-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M3 3l18 18" stroke="currentColor" stroke-width="1.8"/>
+      <path d="M1 12s4-7 11-7a10.9 10.9 0 0 1 8.1 3.4M22.9 12.3C21.5 14.2 17.9 19 12 19c-7 0-11-7-11-7" fill="none" stroke="currentColor" stroke-width="1.8"/>
+      <circle cx="12" cy="12" r="3.5" fill="none" stroke="currentColor" stroke-width="1.8"/>
+    </svg>`;
+
+            function ensureTitleRowAndBody(paperEl) {
+                // Find the row with <h2> (your markup already has the first <div> with h2 + bookmark)
+                const firstDiv = paperEl.querySelector('div');
+                if (firstDiv && !firstDiv.classList.contains('title-row')) {
+                    firstDiv.classList.add('title-row');
+                }
+                // Wrap everything after title row into .paper-body, if not already
+                if (!paperEl.querySelector('.paper-body')) {
+                    const body = document.createElement('div');
+                    body.className = 'paper-body';
+                    // Move siblings after title-row into body
+                    let node = firstDiv?.nextSibling;
+                    const toMove = [];
+                    while (node) {
+                        const next = node.nextSibling;
+                        toMove.push(node);
+                        node = next;
+                    }
+                    toMove.forEach(n => body.appendChild(n));
+                    paperEl.appendChild(body);
+                }
+            }
+
+            function addVisibilityButton(paperEl) {
+                const id = paperEl.dataset.paperId || paperEl.querySelector('.meta')?.dataset.paperId || '';
+                if (!id) return;
+                const titleRow = paperEl.querySelector('.title-row');
+                if (!titleRow || titleRow.querySelector('.visibility-toggle')) return;
+
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'visibility-toggle';
+                btn.setAttribute('aria-label', 'Toggle visibility');
+                btn.setAttribute('aria-pressed', 'false');
+
+                // Insert after the title <h2> (before bookmark), or just append
+                const h2 = titleRow.querySelector('h2');
+                if (h2 && h2.nextSibling) titleRow.insertBefore(btn, h2.nextSibling);
+                else titleRow.appendChild(btn);
+
+                // Initial state
+                const saved = localStorage.getItem(KEY(id)) || 'open';
+                applyState(paperEl, btn, saved === 'open');
+
+                // Click to toggle
+                btn.addEventListener('click', () => {
+                    const isOpen = !paperEl.classList.contains('collapsed');
+                    applyState(paperEl, btn, !isOpen);
+                    localStorage.setItem(KEY(id), (!isOpen) ? 'open' : 'closed');
+                });
+            }
+
+            function applyState(paperEl, btn, open) {
+                if (open) {
+                    paperEl.classList.remove('collapsed');
+                    btn.innerHTML = eyeOpenSVG;
+                    btn.setAttribute('aria-pressed', 'true');
+                    btn.title = 'Hide content';
+                } else {
+                    paperEl.classList.add('collapsed');
+                    btn.innerHTML = eyeClosedSVG;
+                    btn.setAttribute('aria-pressed', 'false');
+                    btn.title = 'Show content';
+                }
+            }
+
+            // Init on load
+            window.addEventListener('load', () => {
+                document.querySelectorAll('.paper').forEach(paperEl => {
+                    ensureTitleRowAndBody(paperEl);
+                    addVisibilityButton(paperEl);
+
+                    // Restore saved state
+                    const id = paperEl.dataset.paperId || paperEl.querySelector('.meta')?.dataset.paperId || '';
+                    if (id) {
+                        const saved = localStorage.getItem(KEY(id)) || 'open';
+                        const btn = paperEl.querySelector('.visibility-toggle');
+                        if (btn) applyState(paperEl, btn, saved === 'open');
+                    }
+                });
+            });
+        })();
+    </script>
 
 </body>
 
