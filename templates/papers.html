@@ -101,6 +101,51 @@
             height: 20px;
             display: block
         }
+
+        .icon-ctl {
+            width: 20px;
+            height: 20px;
+            display: inline-block;
+            vertical-align: middle;
+            line-height: 0;
+        }
+
+        /* your PDF toggle anchor */
+        .rtldr-icon {
+            cursor: pointer;
+            text-decoration: none;
+            padding: 6px;
+            /* matches your other icon hit-areas */
+        }
+
+        /* normalize any inline SVG the toggle uses */
+        .rtldr-icon svg {
+            width: 20px;
+            height: 20px;
+            stroke-width: 1.8;
+            /* matches your eye/bookmark stroke */
+            display: block;
+        }
+
+        .rtldr-focus-btn {
+            appearance: none;
+            border: 1px solid #d1d5db;
+            background: #f8fafc;
+            color: #111;
+            font-size: 13px;
+            padding: 6px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .rtldr-focus-btn:hover {
+            background: #eef2f7;
+        }
+
+        .rtldr-focus-btn:focus {
+            outline: 2px solid #ddd;
+            outline-offset: 2px;
+        }
     </style>
 
 </head>
@@ -153,7 +198,7 @@
     <div class="paper" data-main="{{ primary.term.split('.')[0] if primary else 'unknown' }}"
         data-sub="{{ paper.categories | map(attribute='term') | join(',') }}">
 
-        <div style="display: flex; align-items: center; gap: 6px;">
+        <!-- <div style="display: flex; align-items: center; gap: 6px;">
             <h2 style="margin: 0;">{{ paper.title }}</h2>
             <button class="bookmark-toggle" data-paper-id="{{ paper.id }}" aria-pressed="false"
                 aria-label="Toggle bookmark" title="Toggle bookmark" type="button">
@@ -162,6 +207,22 @@
                         stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
                 </svg>
             </button>
+        </div> -->
+
+        <div class="title-row" style="display:flex;align-items:center;gap:6px;">
+            <!-- bookmark first -->
+            <button class="bookmark-toggle" data-paper-id="{{ paper.id }}" aria-pressed="false"
+                aria-label="Toggle bookmark" title="Toggle bookmark" type="button">
+                <svg class="bm-icon" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                    <path class="bm-shape" d="M6 2h12a2 2 0 0 1 2 2v18l-8-4-8 4V4a2 2 0 0 1 2-2z" fill="none"
+                        stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" />
+                </svg>
+            </button>
+
+            <!-- title next -->
+            <h2 style="margin:0;">{{ paper.title }}</h2>
+
+            <!-- the eye button is injected by your JS (stays after the title) -->
         </div>
 
 
@@ -740,6 +801,317 @@
             });
         })();
     </script>
+
+
+    <!-- ===== ResearchTLDR: PDF Focus Mode w/ Icon Toggle ===== -->
+    <style>
+        :root {
+            --rtldr-pdf-width: 48vw;
+        }
+
+        body.rtldr-pdf-open {
+            overflow-y: auto;
+        }
+
+        body.rtldr-pdf-open #rtldr-pdf-panel {
+            display: block;
+        }
+
+        #rtldr-pdf-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            width: var(--rtldr-pdf-width);
+            max-width: 90vw;
+            min-width: 280px;
+            background: #111;
+            color: #fff;
+            border-left: 1px solid rgba(255, 255, 255, 0.15);
+            display: none;
+            z-index: 9999;
+            box-shadow: -8px 0 24px rgba(0, 0, 0, 0.25);
+        }
+
+        #rtldr-pdf-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 12px;
+            background: rgba(0, 0, 0, 0.6);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+            user-select: none;
+        }
+
+        #rtldr-pdf-header .title {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        #rtldr-pdf-header button,
+        #rtldr-pdf-header a {
+            appearance: none;
+            border: 0;
+            background: #222;
+            color: #fff;
+            padding: 6px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        #rtldr-pdf-iframe {
+            width: 100%;
+            height: calc(100% - 46px);
+            border: 0;
+            background: #222;
+        }
+
+        #rtldr-pdf-resizer {
+            position: absolute;
+            left: -6px;
+            top: 0;
+            bottom: 0;
+            width: 6px;
+            cursor: col-resize;
+            background: transparent;
+        }
+
+        #rtldr-pdf-tip {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            font-size: 12px;
+            opacity: 0.75;
+        }
+
+        @media (min-width: 980px) {
+            body.rtldr-pdf-open {
+                padding-right: var(--rtldr-pdf-width);
+            }
+        }
+
+        .rtldr-toolbar {
+            margin-top: 6px;
+            font-size: 13px;
+            color: #334155;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .rtldr-toolbar a {
+            color: inherit;
+            text-decoration: underline;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .rtldr-sep {
+            margin: 0 6px;
+            opacity: .5;
+        }
+
+        .rtldr-icon {
+            font-size: 16px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .rtldr-focus-btn {
+            appearance: none;
+            border: 1px solid #d1d5db;
+            background: #f8fafc;
+            color: #111;
+            font-size: 13px;
+            padding: 6px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-bottom: 6px;
+            margin-top: 8px;
+            margin-bottom: 6px;
+        }
+
+        .rtldr-focus-btn:hover {
+            background: #eef2f7;
+        }
+
+        .rtldr-focus-btn:focus {
+            outline: 2px solid #ddd;
+            outline-offset: 2px;
+        }
+
+        .title-row .bookmark-toggle {
+            margin: 0;
+            padding: 0;
+            line-height: 0;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .title-row .bookmark-toggle svg {
+            width: 20px;
+            height: 20px;
+        }
+    </style>
+
+    <div id="rtldr-pdf-panel" aria-hidden="true" role="dialog" aria-label="PDF Focus Panel">
+        <div id="rtldr-pdf-resizer" title="Drag to resize"></div>
+        <div id="rtldr-pdf-header">
+            <div class="title" id="rtldr-pdf-title">PDF</div>
+        </div>
+        <iframe id="rtldr-pdf-iframe" src="about:blank" allow="fullscreen"></iframe>
+        <div id="rtldr-pdf-tip">Use the Focus mode button in the paper to open/close. [ / ] resize. Drag the thin left
+            edge to resize.</div>
+    </div>
+
+    <script>
+        (function () {
+            const LS_WIDTH = 'rtldr.pdf.width.v1';
+            const doc = document;
+            const panel = doc.getElementById('rtldr-pdf-panel');
+            const iframe = doc.getElementById('rtldr-pdf-iframe');
+            const hideBtn = doc.getElementById('rtldr-pdf-hide');
+            const titleEl = doc.getElementById('rtldr-pdf-title');
+            const openExt = doc.getElementById('rtldr-open-ext');
+            const resizer = doc.getElementById('rtldr-pdf-resizer');
+
+            let currentUrl = '';
+
+            function setWidth(px) {
+                const vw = Math.max(280, Math.min(window.innerWidth * 0.9, px));
+                const vwPercent = (vw / window.innerWidth) * 100;
+                document.documentElement.style.setProperty('--rtldr-pdf-width', vwPercent + 'vw');
+                try { localStorage.setItem(LS_WIDTH, String(vw)); } catch { }
+            }
+            try {
+                const saved = parseFloat(localStorage.getItem(LS_WIDTH));
+                if (Number.isFinite(saved) && saved > 0) setWidth(saved);
+                else setWidth(window.innerWidth * 0.48);
+            } catch { setWidth(window.innerWidth * 0.48); }
+
+            function show(url, title) {
+                if (!url) return;
+                if (!/\.pdf(\?|$)/i.test(url) && !/arxiv\.org\/pdf\//i.test(url)) return;
+
+                document.body.classList.add('rtldr-pdf-open');
+                panel.style.display = 'block';
+                panel.setAttribute('aria-hidden', 'false');
+
+                if (currentUrl !== url) {
+                    iframe.src = url;
+                    currentUrl = url;
+                }
+                titleEl.textContent = title || 'PDF';
+
+                updateAllFocusButtons(); // reflect label changes
+            }
+
+            function hide() {
+                document.body.classList.remove('rtldr-pdf-open');
+                panel.setAttribute('aria-hidden', 'true');
+                panel.style.display = 'none';
+                // Optional: free memory
+                // iframe.src = 'about:blank';
+
+                updateAllFocusButtons();
+            }
+
+            // Resizer
+            let dragging = false, startX = 0, startW = 0;
+            resizer.addEventListener('mousedown', (e) => { dragging = true; startX = e.clientX; startW = panel.getBoundingClientRect().width; doc.body.style.userSelect = 'none'; });
+            window.addEventListener('mousemove', (e) => { if (!dragging) return; const dx = startX - e.clientX; setWidth(startW + dx); });
+            window.addEventListener('mouseup', () => { dragging = false; doc.body.style.userSelect = ''; });
+
+            // Keys
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') hide();
+                if (!doc.body.classList.contains('rtldr-pdf-open')) return;
+                if (e.key === '[') { const w = panel.getBoundingClientRect().width; setWidth(w + Math.max(24, window.innerWidth * 0.02)); }
+                if (e.key === ']') { const w = panel.getBoundingClientRect().width; setWidth(w - Math.max(24, window.innerWidth * 0.02)); }
+            });
+
+            // Build toolbar: arXiv Page | PDF | [icon]
+            function toAbsFromPdf(pdfHref) {
+                try {
+                    const u = new URL(pdfHref, location.href);
+                    if (/arxiv\.org\/pdf\//i.test(u.href)) {
+                        const id = u.pathname.replace(/^\/pdf\//, '').replace(/\.pdf$/, '').replace(/^\/+/, '');
+                        return u.origin + '/abs/' + id;
+                    }
+                } catch { }
+                return null;
+            }
+
+            function ensureFocusButton(paper) {
+                if (!paper || paper.querySelector('.rtldr-focus-btn')) return;
+
+                const pdfLink = Array.from(paper.querySelectorAll('a[href]'))
+                    .find(a => (a.getAttribute('href') || '').toLowerCase().endsWith('.pdf')
+                        || /arxiv\.org\/pdf\//i.test(a.getAttribute('href') || ''));
+                if (!pdfLink) return;
+
+                const row = pdfLink.closest('p') || pdfLink.parentElement;
+                const pdfHref = new URL(pdfLink.getAttribute('href'), location.href).href;
+                const title = paper.querySelector('h2, h3, .title')?.textContent?.trim() || 'PDF';
+
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'rtldr-focus-btn';
+                btn.dataset.pdfHref = pdfHref;
+
+                function updateLabel() {
+                    const isOpen = document.body.classList.contains('rtldr-pdf-open');
+                    btn.textContent = (isOpen && currentUrl === pdfHref) ? 'Hide focus mode' : 'Focus mode';
+                }
+
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const isOpen = document.body.classList.contains('rtldr-pdf-open');
+                    if (isOpen && currentUrl === pdfHref) hide();
+                    else show(pdfHref, title);
+                });
+
+                row.insertAdjacentElement('beforebegin', btn);
+                updateLabel();
+            }
+
+            function updateAllFocusButtons() {
+                document.querySelectorAll('.rtldr-focus-btn').forEach(btn => {
+                    const pdfHref = btn.dataset.pdfHref;
+                    const isOpen = document.body.classList.contains('rtldr-pdf-open');
+                    btn.textContent = (isOpen && currentUrl === pdfHref) ? 'Hide focus mode' : 'Focus mode';
+                });
+            }
+
+            function enhanceAll() {
+                const papers = document.querySelectorAll('.paper');
+                if (papers.length) papers.forEach(ensureFocusButton);
+                else {
+                    const cards = Array.from(document.querySelectorAll('div, article, li'))
+                        .filter(x => x.querySelector && x.querySelector('a[href$=".pdf"], a[href*="arxiv.org/pdf/"]'));
+                    cards.forEach(ensureFocusButton);
+                }
+            }
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', enhanceAll); else enhanceAll();
+
+
+            function enhanceAll() {
+                const papers = document.querySelectorAll('.paper');
+                if (papers.length) papers.forEach(ensureFocusButton);
+                else {
+                    const cards = Array.from(document.querySelectorAll('div, article, li'))
+                        .filter(x => x.querySelector && x.querySelector('a[href$=".pdf"], a[href*="arxiv.org/pdf/"]'));
+                    cards.forEach(ensureFocusButton);
+                }
+            }
+            if (document.readyState === 'loading') doc.addEventListener('DOMContentLoaded', enhanceAll); else enhanceAll();
+        })();
+    </script>
+    <!-- ===== /PDF Focus Mode (icon toggle) ===== -->
 
 </body>
 
