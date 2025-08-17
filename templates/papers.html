@@ -997,17 +997,17 @@
                 if (!url) return;
                 if (!/\.pdf(\?|$)/i.test(url) && !/arxiv\.org\/pdf\//i.test(url)) return;
 
-                document.body.classList.add('rtldr-pdf-open');
-                panel.style.display = 'block';
-                panel.setAttribute('aria-hidden', 'false');
+                // Force HTTPS to avoid mixed-content blocking
+                url = url.replace(/^http:/i, "https:");
 
+                document.body.classList.add('rtldr-pdf-open');
+                panel.setAttribute('aria-hidden', 'false');
                 if (currentUrl !== url) {
                     iframe.src = url;
+                    openExt.href = url;
                     currentUrl = url;
                 }
                 titleEl.textContent = title || 'PDF';
-
-                updateAllFocusButtons(); // reflect label changes
             }
 
             function hide() {
