@@ -29,6 +29,61 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
     <style>
+        /* ========= Theme tokens ========= */
+        :root {
+            --gap-xxs: 4px;
+            --gap-xs: 6px;
+            --pad-x: 12px;
+            --icon: 20px;
+
+            --c-text: #111;
+            --c-muted: #ddd;
+            --c-border: #d1d5db;
+            --c-bg-btn: #f8fafc;
+            --c-bg-btn-hover: #eef2f7;
+            --c-bookmark: #ff6b6b;
+            --c-focus: #fff1e1;
+            /* focused paper background */
+        }
+
+        /* ========= Small utilities (optional to reuse) ========= */
+        .u-icon-btn {
+            appearance: none;
+            border: 0;
+            background: transparent;
+            cursor: pointer;
+            padding: var(--gap-xs);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .u-focus-ring {
+            outline: 2px solid var(--c-muted);
+            outline-offset: 2px;
+            border-radius: 4px;
+        }
+
+        .u-icon {
+            width: var(--icon);
+            height: var(--icon);
+            display: block;
+        }
+
+        .u-btn {
+            appearance: none;
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 13px;
+            color: var(--c-text);
+            border: 1px solid var(--c-border);
+            background: var(--c-bg-btn);
+            padding: 6px 10px;
+        }
+
+        /* ========= Your original selectors (preserved) ========= */
+
+        /* Bookmark button */
         .bookmark-toggle {
             appearance: none;
             background: transparent;
@@ -40,35 +95,34 @@
             justify-content: center;
         }
 
-        .bm-icon {
-            display: block;
-        }
-
-        /* The bookmark shape */
-        .bm-shape {
-            fill: none;
-            paint-order: stroke fill markers;
-            /* Ensures stroke is drawn on top of fill */
-            vector-effect: non-scaling-stroke;
-            transition: fill 120ms ease;
-        }
-
-        /* When toggled on */
-        .bookmark-toggle[aria-pressed="true"] .bm-shape {
-            fill: #ff6b6b;
-            /* Stronger light red for visibility */
-        }
-
         .bookmark-toggle:focus {
-            outline: 2px solid #ddd;
+            outline: 2px solid var(--c-muted);
             outline-offset: 2px;
             border-radius: 4px;
         }
 
         .bookmark-toggle:hover .bm-shape {
-            opacity: 0.85;
+            opacity: .85;
         }
 
+        .bm-icon {
+            display: block;
+            width: var(--icon);
+            height: var(--icon);
+        }
+
+        .bm-shape {
+            fill: none;
+            paint-order: stroke fill markers;
+            vector-effect: non-scaling-stroke;
+            transition: fill 120ms ease;
+        }
+
+        .bookmark-toggle[aria-pressed="true"] .bm-shape {
+            fill: var(--c-bookmark);
+        }
+
+        /* Eye/visibility button */
         .visibility-toggle {
             appearance: none;
             border: 0;
@@ -81,11 +135,18 @@
         }
 
         .visibility-toggle:focus {
-            outline: 2px solid #ddd;
+            outline: 2px solid var(--c-muted);
             outline-offset: 2px;
             border-radius: 4px;
         }
 
+        .vis-icon {
+            width: var(--icon);
+            height: var(--icon);
+            display: block;
+        }
+
+        /* Paper card scaffolding */
         .paper.collapsed .paper-body {
             display: none;
         }
@@ -93,45 +154,38 @@
         .paper .title-row {
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: var(--gap-xs);
         }
 
-        .vis-icon {
-            width: 20px;
-            height: 20px;
-            display: block
-        }
-
+        /* Misc icon container you had */
         .icon-ctl {
-            width: 20px;
-            height: 20px;
+            width: var(--icon);
+            height: var(--icon);
             display: inline-block;
             vertical-align: middle;
             line-height: 0;
         }
 
-        /* your PDF toggle anchor */
+        /* PDF toggle anchor + its svg normalization */
         .rtldr-icon {
             cursor: pointer;
             text-decoration: none;
-            padding: 6px;
-            /* matches your other icon hit-areas */
+            padding: var(--gap-xs);
         }
 
-        /* normalize any inline SVG the toggle uses */
         .rtldr-icon svg {
-            width: 20px;
-            height: 20px;
+            width: var(--icon);
+            height: var(--icon);
             stroke-width: 1.8;
-            /* matches your eye/bookmark stroke */
             display: block;
         }
 
+        /* Focus mode button */
         .rtldr-focus-btn {
             appearance: none;
-            border: 1px solid #d1d5db;
-            background: #f8fafc;
-            color: #111;
+            border: 1px solid var(--c-border);
+            background: var(--c-bg-btn);
+            color: var(--c-text);
             font-size: 13px;
             padding: 6px 10px;
             border-radius: 6px;
@@ -139,12 +193,36 @@
         }
 
         .rtldr-focus-btn:hover {
-            background: #eef2f7;
+            background: var(--c-bg-btn-hover);
         }
 
         .rtldr-focus-btn:focus {
-            outline: 2px solid #ddd;
+            outline: 2px solid var(--c-muted);
             outline-offset: 2px;
+        }
+
+        /* Full-bleed highlight for the active paper (keeps your padding/size) */
+        .paper.rtldr-focused-paper {
+            background: var(--c-focus);
+            border-radius: 6px;
+            margin-left: calc(-1 * var(--pad-x));
+            margin-right: calc(-1 * var(--pad-x));
+            padding-left: var(--pad-x);
+            padding-right: var(--pad-x);
+        }
+
+        /* (Optional) make sure the bookmark inside title row keeps compact spacing */
+        .title-row .bookmark-toggle {
+            margin: 0;
+            padding: 0;
+            line-height: 0;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .title-row .bookmark-toggle svg {
+            width: var(--icon);
+            height: var(--icon);
         }
     </style>
 
@@ -978,6 +1056,7 @@
             const resizer = doc.getElementById('rtldr-pdf-resizer');
 
             let currentUrl = '';
+            let currentPaper = null;
 
             function setWidth(px) {
                 const vw = Math.max(280, Math.min(window.innerWidth * 0.9, px));
@@ -1000,7 +1079,7 @@
                 }
             }
 
-            function show(url, title) {
+            function show(url, title, paperEl) {
                 if (!url) return;
                 url = normalizePdfUrl(url);
                 if (!/\.pdf(\?|$)/i.test(url) && !/arxiv\.org\/pdf\//i.test(url)) return;
@@ -1014,6 +1093,13 @@
                     currentUrl = url;
                 }
                 titleEl.textContent = title || 'PDF';
+
+                // remove highlight from previous paper
+                if (currentPaper) currentPaper.classList.remove('rtldr-focused-paper');
+                // highlight the one we just clicked
+                currentPaper = paperEl;
+                if (currentPaper) currentPaper.classList.add('rtldr-focused-paper');
+
                 updateAllFocusButtons();
             }
 
@@ -1022,6 +1108,12 @@
                 document.body.classList.remove('rtldr-pdf-open');
                 panel.setAttribute('aria-hidden', 'true');
                 panel.style.display = 'none';                 // keep if you like instant hide
+
+                // clear highlight
+                if (currentPaper) {
+                    currentPaper.classList.remove('rtldr-focused-paper');
+                    currentPaper = null;
+                }
 
                 updateAllFocusButtons();                      // <-- refresh button label
             }
@@ -1086,7 +1178,7 @@
                     if (isOpen && currentUrl === target) {           // ✅ robust toggle
                         hide();
                     } else {
-                        show(target, title);
+                        show(target, title, paper);
                     }
                 });
 
