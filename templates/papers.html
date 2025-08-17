@@ -974,9 +974,7 @@
             const doc = document;
             const panel = doc.getElementById('rtldr-pdf-panel');
             const iframe = doc.getElementById('rtldr-pdf-iframe');
-            const hideBtn = doc.getElementById('rtldr-pdf-hide');
             const titleEl = doc.getElementById('rtldr-pdf-title');
-            const openExt = doc.getElementById('rtldr-open-ext');
             const resizer = doc.getElementById('rtldr-pdf-resizer');
 
             let currentUrl = '';
@@ -993,32 +991,41 @@
                 else setWidth(window.innerWidth * 0.48);
             } catch { setWidth(window.innerWidth * 0.48); }
 
+            function normalizePdfUrl(u) {
+                try {
+                    const abs = new URL(u, location.href).href;
+                    return abs.replace(/^http:/i, 'https:');
+                } catch {
+                    return u;
+                }
+            }
+
             function show(url, title) {
                 if (!url) return;
+                url = normalizePdfUrl(url);
                 if (!/\.pdf(\?|$)/i.test(url) && !/arxiv\.org\/pdf\//i.test(url)) return;
 
-                // Force HTTPS to avoid mixed-content blocking
-                url = url.replace(/^http:/i, "https:");
-
                 document.body.classList.add('rtldr-pdf-open');
+                panel.style.display = 'block';
                 panel.setAttribute('aria-hidden', 'false');
+
                 if (currentUrl !== url) {
                     iframe.src = url;
-                    openExt.href = url;
                     currentUrl = url;
                 }
                 titleEl.textContent = title || 'PDF';
+                updateAllFocusButtons();
             }
+
 
             function hide() {
                 document.body.classList.remove('rtldr-pdf-open');
                 panel.setAttribute('aria-hidden', 'true');
-                panel.style.display = 'none';
-                // Optional: free memory
-                // iframe.src = 'about:blank';
+                panel.style.display = 'none';                 // keep if you like instant hide
 
-                updateAllFocusButtons();
+                updateAllFocusButtons();                      // <-- refresh button label
             }
+
 
             // Resizer
             let dragging = false, startX = 0, startW = 0;
@@ -1055,13 +1062,14 @@
                 if (!pdfLink) return;
 
                 const row = pdfLink.closest('p') || pdfLink.parentElement;
-                const pdfHref = new URL(pdfLink.getAttribute('href'), location.href).href;
+                const rawHref = pdfLink.getAttribute('href');
+                const pdfHref = normalizePdfUrl(rawHref);          // ✅ normalize once
                 const title = paper.querySelector('h2, h3, .title')?.textContent?.trim() || 'PDF';
 
                 const btn = document.createElement('button');
                 btn.type = 'button';
                 btn.className = 'rtldr-focus-btn';
-                btn.dataset.pdfHref = pdfHref;
+                btn.dataset.pdfHref = pdfHref;                     // ✅ store normalized
 
                 function updateLabel() {
                     const isOpen = document.body.classList.contains('rtldr-pdf-open');
@@ -1070,20 +1078,28 @@
 
                 btn.addEventListener('click', (e) => {
                     e.preventDefault();
+                    e.stopPropagation();
+
+                    const target = btn.dataset.pdfHref;              // already normalized
                     const isOpen = document.body.classList.contains('rtldr-pdf-open');
-                    if (isOpen && currentUrl === pdfHref) hide();
-                    else show(pdfHref, title);
+
+                    if (isOpen && currentUrl === target) {           // ✅ robust toggle
+                        hide();
+                    } else {
+                        show(target, title);
+                    }
                 });
 
                 row.insertAdjacentElement('beforebegin', btn);
                 updateLabel();
             }
 
+
             function updateAllFocusButtons() {
+                const isOpen = document.body.classList.contains('rtldr-pdf-open');
                 document.querySelectorAll('.rtldr-focus-btn').forEach(btn => {
-                    const pdfHref = btn.dataset.pdfHref;
-                    const isOpen = document.body.classList.contains('rtldr-pdf-open');
-                    btn.textContent = (isOpen && currentUrl === pdfHref) ? 'Hide focus mode' : 'Focus mode';
+                    const href = btn.dataset.pdfHref;               // already normalized
+                    btn.textContent = (isOpen && currentUrl === href) ? 'Hide focus mode' : 'Focus mode';
                 });
             }
 
@@ -1096,19 +1112,8 @@
                     cards.forEach(ensureFocusButton);
                 }
             }
-            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', enhanceAll); else enhanceAll();
-
-
-            function enhanceAll() {
-                const papers = document.querySelectorAll('.paper');
-                if (papers.length) papers.forEach(ensureFocusButton);
-                else {
-                    const cards = Array.from(document.querySelectorAll('div, article, li'))
-                        .filter(x => x.querySelector && x.querySelector('a[href$=".pdf"], a[href*="arxiv.org/pdf/"]'));
-                    cards.forEach(ensureFocusButton);
-                }
-            }
-            if (document.readyState === 'loading') doc.addEventListener('DOMContentLoaded', enhanceAll); else enhanceAll();
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', enhanceAll);
+            else enhanceAll();
         })();
     </script>
     <!-- ===== /PDF Focus Mode (icon toggle) ===== -->
