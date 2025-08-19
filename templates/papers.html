@@ -29,24 +29,62 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
     <style>
-        /* ========= Theme tokens ========= */
+        /* ========== Theme tokens ========== */
         :root {
+            /* Spacing & sizes */
             --gap-xxs: 4px;
             --gap-xs: 6px;
             --pad-x: 12px;
             --icon: 20px;
+            --hdr-h: 56px;
+            --paper-pad: 14px;
 
+            /* Colors */
             --c-text: #111;
+            /* main text */
             --c-muted: #ddd;
+            /* focus outlines, etc. */
             --c-border: #d1d5db;
+            /* generic border token */
+            --c-border-light: #d1d5db;
+            /* alias used by layout */
             --c-bg-btn: #f8fafc;
+            /* neutral button bg */
             --c-bg-btn-hover: #eef2f7;
             --c-bookmark: #ff6b6b;
+            /* bookmark fill */
             --c-focus: #fff1e1;
-            /* focused paper background */
+            /* paper highlight bg */
+
+            /* Surfaces */
+            --c-bg-page: #fafafa;
+            --c-bg-header: #e1eafc;
+            /* --c-bg-header: #5baaff; */
+            --c-bg-footer: #e5e7eb;
+
+            /* Links */
+            --c-link: #2563eb;
+            --c-link-hover: #1d4ed8;
         }
 
-        /* ========= Small utilities (optional to reuse) ========= */
+        /* Reset browser default body margin */
+        body {
+            margin: 0;
+        }
+
+        /* ========== Base ========== */
+        body.has-rtldr-header {
+            padding-top: 0;
+            background: var(--c-bg-page);
+            color: var(--c-text);
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        }
+
+        .is-hidden {
+            display: none !important;
+        }
+
+        /* ========== Small utilities ========== */
         .u-icon-btn {
             appearance: none;
             border: 0;
@@ -81,9 +119,172 @@
             padding: 6px 10px;
         }
 
-        /* ========= Your original selectors (preserved) ========= */
+        .u-btn:hover {
+            background: var(--c-bg-btn-hover);
+        }
 
-        /* Bookmark button */
+        /* ========== Header ========== */
+        .rtldr-header {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            height: var(--hdr-h);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 16px;
+            background: var(--c-bg-header);
+            border-bottom: 1px solid var(--c-border-light);
+            box-shadow: 0 1px 0 var(--c-border-light);
+            /* subtle divider */
+        }
+
+        .rtldr-brand {
+            font-weight: 700;
+            font-size: 16px;
+            letter-spacing: .2px;
+        }
+
+        .rtldr-header a {
+            color: var(--c-text);
+            text-decoration: none;
+        }
+
+        .rtldr-header a:hover {
+            color: var(--c-link);
+        }
+
+        .rtldr-spacer {
+            flex: 1;
+        }
+
+        /* Mini nav */
+        .rtldr-mininav {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-left: 12px;
+        }
+
+        .rtldr-mininav a {
+            color: var(--c-text);
+            text-decoration: none;
+            font-size: 14px;
+            opacity: .9;
+        }
+
+        .rtldr-mininav a:hover {
+            color: var(--c-link);
+        }
+
+        /* User block */
+        .rtldr-user {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .rtldr-user img {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+        }
+
+        .rtldr-user span,
+        .rtldr-user a {
+            color: var(--c-text);
+        }
+
+        /* ========== Page header (title + filters) ========== */
+        .page-header {
+            display: flex;
+            align-items: end;
+            gap: 16px;
+            padding: 12px 8px 8px;
+            border-bottom: 1px solid var(--c-border-light);
+            margin-bottom: 12px;
+        }
+
+        .page-title {
+            font-size: 2rem;
+            line-height: 1.1;
+            margin: 0;
+        }
+
+        .page-controls {
+            display: flex;
+            align-items: flex-end;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .page-controls label {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-size: 12px;
+            color: #334155;
+        }
+
+        .page-controls select {
+            padding: 6px 8px;
+            border: 1px solid var(--c-border-light);
+            border-radius: 6px;
+            background: #fff;
+            font-size: 14px;
+        }
+
+        /* ========== Paper cards & highlight ========== */
+        .paper {
+            background: transparent;
+            padding: var(--paper-pad) 12px var(--paper-pad);
+            margin: 0;
+            /* spacing handled by padding */
+            border-top: 1px solid var(--c-border-light);
+            border-bottom: 1px solid var(--c-border-light);
+        }
+
+        .paper+.paper {
+            border-top: 0;
+        }
+
+        .paper:first-of-type {
+            border-top: 0;
+        }
+
+        .paper h2 {
+            margin-top: 0;
+        }
+
+        /* flush top inside highlight */
+        .paper hr {
+            display: none;
+        }
+
+        /* hide legacy separators */
+
+        /* Collapsed state for body */
+        .paper.collapsed .paper-body {
+            display: none;
+        }
+
+        /* Focused (no layout shift) */
+        .paper.rtldr-focused-paper {
+            background: var(--c-focus);
+            border-top-color: var(--c-border-light);
+            border-bottom-color: var(--c-border-light);
+            border-radius: 6px;
+            /* subtle, optional */
+        }
+
+        /* Title row */
+        .paper .title-row {
+            display: flex;
+            align-items: center;
+            gap: var(--gap-xs);
+        }
+
+        /* ========== Bookmark button ========== */
         .bookmark-toggle {
             appearance: none;
             background: transparent;
@@ -122,13 +323,27 @@
             fill: var(--c-bookmark);
         }
 
-        /* Eye/visibility button */
+        /* Keep compact in title row */
+        .title-row .bookmark-toggle {
+            margin: 0;
+            padding: 0;
+            line-height: 0;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .title-row .bookmark-toggle svg {
+            width: var(--icon);
+            height: var(--icon);
+        }
+
+        /* ========== Visibility (eye) button ========== */
         .visibility-toggle {
             appearance: none;
             border: 0;
             background: transparent;
             cursor: pointer;
-            padding: 6px 6px;
+            padding: 6px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -146,41 +361,7 @@
             display: block;
         }
 
-        /* Paper card scaffolding */
-        .paper.collapsed .paper-body {
-            display: none;
-        }
-
-        .paper .title-row {
-            display: flex;
-            align-items: center;
-            gap: var(--gap-xs);
-        }
-
-        /* Misc icon container you had */
-        .icon-ctl {
-            width: var(--icon);
-            height: var(--icon);
-            display: inline-block;
-            vertical-align: middle;
-            line-height: 0;
-        }
-
-        /* PDF toggle anchor + its svg normalization */
-        .rtldr-icon {
-            cursor: pointer;
-            text-decoration: none;
-            padding: var(--gap-xs);
-        }
-
-        .rtldr-icon svg {
-            width: var(--icon);
-            height: var(--icon);
-            stroke-width: 1.8;
-            display: block;
-        }
-
-        /* Focus mode button */
+        /* ========== PDF/Focus mode button ========== */
         .rtldr-focus-btn {
             appearance: none;
             border: 1px solid var(--c-border);
@@ -196,60 +377,112 @@
             background: var(--c-bg-btn-hover);
         }
 
-        .rtldr-focus-btn:focus {
-            outline: 2px solid var(--c-muted);
-            outline-offset: 2px;
+        .rtldr-icon {
+            cursor: pointer;
+            text-decoration: none;
+            padding: var(--gap-xs);
         }
 
-        /* Full-bleed highlight for the active paper (keeps your padding/size) */
-        .paper.rtldr-focused-paper {
-            background: var(--c-focus);
-            border-radius: 6px;
-            margin-left: calc(-1 * var(--pad-x));
-            margin-right: calc(-1 * var(--pad-x));
-            padding-left: var(--pad-x);
-            padding-right: var(--pad-x);
-        }
-
-        /* (Optional) make sure the bookmark inside title row keeps compact spacing */
-        .title-row .bookmark-toggle {
-            margin: 0;
-            padding: 0;
-            line-height: 0;
-            display: inline-flex;
-            align-items: center;
-        }
-
-        .title-row .bookmark-toggle svg {
+        .rtldr-icon svg {
             width: var(--icon);
             height: var(--icon);
+            stroke-width: 1.8;
+            display: block;
+        }
+
+        /* ========== Footer ========== */
+        .rtldr-footer {
+            margin-top: 28px;
+            border-top: 1px solid var(--c-border-light);
+            background: var(--c-bg-footer);
+            padding: 14px 12px;
+            font-size: 13px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+            color: var(--c-text);
+        }
+
+        .rtldr-footer a {
+            color: var(--c-link);
+            text-decoration: none;
+        }
+
+        .rtldr-footer a:hover {
+            color: var(--c-link-hover);
+            text-decoration: underline;
         }
     </style>
+
+
 
 </head>
 
 
-<body data-logged-in="{{ '1' if user else '' }}">
-    <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px;">
-        {% if user %}
-        <img src="{{ user.picture }}" referrerpolicy="no-referrer" style="width:28px;height:28px;border-radius:50%">
-        <span>Signed in as {{ user.name or user.email }}</span>
-        <a href="/logout">Logout</a>
-        {% else %}
-        <a href="/login">Sign in with Google</a>
-        {% endif %}
-    </div>
-    {% if user %}
+<body data-logged-in="{{ '1' if user else '' }}" class="has-rtldr-header">
+    <header class="rtldr-header" role="banner">
+        <a href="/" class="rtldr-brand">ResearchTLDR</a>
+
+        <nav class="rtldr-mininav" aria-label="Primary">
+            <a href="/">Explore</a>
+            {% if user %}<a href="/bookmarks">Bookmarks</a>{% endif %}
+            <!-- <a href="/about">About</a> -->
+        </nav>
+
+        <div class="rtldr-spacer"></div>
+
+        <div class="rtldr-user">
+            {% if user %}
+            <img src="{{ user.picture }}" referrerpolicy="no-referrer" alt="">
+            <span>{{ user.name or user.email }}</span>
+            <a href="/logout" class="u-btn">Logout</a>
+            {% else %}
+            <a href="/login" class="u-btn">Sign in</a>
+            {% endif %}
+        </div>
+    </header>
+    <!-- {% if user %}
     <nav class="view-switcher" style="margin: 12px 0;">
         <a href="/" class="{{ 'font-bold' if active_view != 'bookmarks' else '' }}">All papers</a>
         &nbsp;·&nbsp;
         <a href="/bookmarks" class="{{ 'font-bold' if active_view == 'bookmarks' else '' }}">My bookmarks</a>
     </nav>
-    {% endif %}
+    {% endif %} -->
 
-    <h1>arXiv Papers</h1>
+    <!-- <h1>arXiv Papers</h1> -->
+
+    <section class="page-header">
+        <h1 class="page-title">arXiv Papers</h1>
+
+        <div class="page-controls">
+            <label>
+                <span>Category</span>
+                <select id="main-category" onchange="filterByMainCategory()">
+                    <option value="all">All</option>
+                    <option value="math">Mathematics</option>
+                    <option value="cs">Computer Science</option>
+                    <option value="physics">Physics</option>
+                    <option value="stat">Statistics</option>
+                    <option value="q-bio">Quantitative Biology</option>
+                    <option value="q-fin">Quantitative Finance</option>
+                    <option value="eess">Electrical Engineering & Systems Science</option>
+                    <option value="econ">Economics</option>
+                </select>
+            </label>
+
+            <label id="subcat-wrap" class="is-hidden">
+                <span>Subcategory</span>
+                <select id="sub-category" onchange="filterBySubCategory()">
+                    <option value="all">All</option>
+                </select>
+            </label>
+        </div>
+    </section>
+
     <!-- Main Category Filters -->
-    <div id="category-filters">
+    <!-- <div id="category-filters">
         <label for="main-category">Filter by Category:</label>
         <select id="main-category" onchange="filterByMainCategory()">
             <option value="all">All</option>
@@ -262,15 +495,15 @@
             <option value="eess">Electrical Engineering & Systems Science</option>
             <option value="econ">Economics</option>
         </select>
-    </div>
+    </div> -->
 
-
+    <!-- 
     <div id="subcategory-filters" style="display: none;">
         <label for="sub-category">Filter by Subcategory:</label>
         <select id="sub-category" onchange="filterBySubCategory()">
             <option value="all">All</option>
         </select>
-    </div>
+    </div> -->
     {% for paper in papers %}
     {% set primary = paper.categories | selectattr("is_primary") | list | first %}
     <div class="paper" data-main="{{ primary.term.split('.')[0] if primary else 'unknown' }}"
@@ -349,7 +582,7 @@
             <button class="vote-up" title="Upvote" type="button">▲</button>
             <button class="vote-down" title="Downvote" type="button">▼</button>
         </div>
-        <hr>
+        <!-- <hr> -->
     </div>
     <!-- <hr> -->
     {% endfor %}
@@ -732,18 +965,23 @@
 
         function filterByMainCategory() {
             const selectedMain = document.getElementById('main-category').value;
-            const subFilterDiv = document.getElementById('subcategory-filters');
+            const subWrap = document.getElementById('subcat-wrap');
             const subSelect = document.getElementById('sub-category');
 
-            // Persist (NEW)
+            // Persist main selection
             localStorage.setItem(LS_KEYS.MAIN, selectedMain);
 
-            // Update subcategory dropdown
+            // Reset subcategory options (start with "All")
+            subSelect.innerHTML = '<option value="all">All</option>';
+
             if (selectedMain === 'all') {
-                subFilterDiv.style.display = 'none';
+                // Hide subcategory when "All" is chosen
+                subWrap.classList.add('is-hidden');
+                localStorage.removeItem(LS_KEYS.SUB);
             } else {
-                subFilterDiv.style.display = 'block';
-                subSelect.innerHTML = '<option value="all">All</option>';
+                // Show subcategory and populate options
+                subWrap.classList.remove('is-hidden');
+
                 const subs = Array.from(subcategoryMap[selectedMain] || []).sort();
                 for (const sub of subs) {
                     const option = document.createElement('option');
@@ -751,10 +989,19 @@
                     option.textContent = sub;
                     subSelect.appendChild(option);
                 }
+
+                // Restore previously saved sub if still valid
+                const savedSub = localStorage.getItem(LS_KEYS.SUB);
+                if (savedSub && [...subSelect.options].some(o => o.value === savedSub)) {
+                    subSelect.value = savedSub;
+                } else {
+                    subSelect.value = 'all';
+                }
             }
 
             filterPapers();
         }
+
 
         function filterBySubCategory() {
             const sub = document.getElementById('sub-category').value;
@@ -1209,7 +1456,13 @@
         })();
     </script>
     <!-- ===== /PDF Focus Mode (icon toggle) ===== -->
-
+    <footer class="rtldr-footer" role="contentinfo">
+        <span>Powered by <a href="https://arxiv.org" target="_blank" rel="noopener">arXiv.org</a></span>
+        <span>·</span>
+        <a href="https://x.com/jasonjias" target="_blank" rel="noopener">Follow @jasonjias</a>
+        <span>·</span>
+        <a href="https://github.com/jasonjias/research-tldr" target="_blank" rel="noopener">GitHub</a>
+    </footer>
 </body>
 
 </html>
