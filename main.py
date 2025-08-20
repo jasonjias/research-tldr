@@ -355,3 +355,8 @@ def html_view(request: Request):
                 "GA_MEASUREMENT_ID": GA_MEASUREMENT_ID,
             },
         )
+
+
+@app.get("/feedback", response_class=HTMLResponse)
+async def feedback(request: Request):
+    return templates.TemplateResponse("feedback.html", {"request": request})
